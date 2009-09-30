@@ -119,25 +119,23 @@ def get_blog_categories(parser, token):
 
 @register.filter
 def get_links(value):
-    """
-    Extracts links from a ``Post`` body and returns a list.
+	"""
+	Extracts links from a ``Post`` body and returns a list.
 
-    Template Syntax::
+	Template Syntax::
 
-        {{ post.body|markdown:"safe"|get_links }}
+	{{ post.body|markdown:"safe"|get_links }}
 
-    """
-    try:
-        try:
-            from BeautifulSoup import BeautifulSoup
-        except ImportError:
-            from beautifulsoup import BeautifulSoup
-        soup = BeautifulSoup(value)
-        return soup.findAll('a')
-    except ImportError:
-        if settings.DEBUG:
-            raise template.TemplateSyntaxError, "Error in 'get_links' filter: BeautifulSoup isn't installed."
-    return value
+	"""
+	try:
+		from BeautifulSoup import BeautifulSoup
+		soup = BeautifulSoup(value)
+		return soup.findAll('a')
+	except ImportError:
+		if settings.DEBUG:
+			raise template.TemplateSyntaxError, "Error in 'get_links' filter: BeautifulSoup isn't installed."
+		pass
+	return value
 
 
 class BlogRolls(template.Node):
