@@ -74,7 +74,7 @@ def post_detail(request, slug, year, month, day, **kwargs):
 
     #grab the post and update view count
     from django.db.models import F
-    post = Post.objects.get(slug=slug)
+    post = get_object_or_404(Post, slug=slug)
 
 
     if not request.user.is_superuser and post.status != 2:
