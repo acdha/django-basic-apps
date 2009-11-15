@@ -1,19 +1,50 @@
 from django.db import models
 from django.db.models import permalink
 from django.conf import settings
-from tagging.fields import TagField
 
+from tagging.fields import TagField
 import tagging
 
+LICENSES = (
+    ('http://creativecommons.org/licenses/by/2.0/',         'CC Attribution'),
+    ('http://creativecommons.org/licenses/by-nd/2.0/',      'CC Attribution-NoDerivs'),
+    ('http://creativecommons.org/licenses/by-nc-nd/2.0/',   'CC Attribution-NonCommercial-NoDerivs'),
+    ('http://creativecommons.org/licenses/by-nc/2.0/',      'CC Attribution-NonCommercial'),
+    ('http://creativecommons.org/licenses/by-nc-sa/2.0/',   'CC Attribution-NonCommercial-ShareAlike'),
+    ('http://creativecommons.org/licenses/by-sa/2.0/',      'CC Attribution-ShareAlike'),
+)
 
-class AudioSet(models.Model):
+class BaseMetadata(models.Model):
+    """Common metadata for all media resources"""
+    title       = models.CharField(max_length=255)
+    slug        = models.SlugField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    created     = models.DateTimeField(auto_now_add=True)
+    modified    = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+class SetBase(BaseMetadata):
+    """Common base class for containers"""
+
+    class Meta:
+        abstract = True
+
+class MediaBase(BaseMetadata):
+    """Common base class for media files"""
+
+    credit     = models.CharField(max_length=100, blank=True)
+    source_url = models.URLField(max_length=255, unique=True, blank=True, null=True, help_text="For non-original images, refers to where we got it")
+    license    = models.URLField(blank=True, choices=LICENSES)
+    tags       = TagField()
+
+    class Meta:
+        abstract = True
+
+class AudioSet(SetBase):
   """ AudioSet model """
-  title         = models.CharField(max_length=255)
-  slug          = models.SlugField()
-  description   = models.TextField(blank=True)
   audios        = models.ManyToManyField('Audio', related_name='audio_sets')
-  created       = models.DateTimeField(auto_now_add=True)
-  modified      = models.DateTimeField(auto_now=True)
   
   class Meta:
     db_table = 'media_audio_sets'
@@ -29,16 +60,10 @@ class AudioSet(models.Model):
     return ('audio_set_detail', None, { 'slug': self.slug })
 
 
-class Audio(models.Model):
+class Audio(MediaBase):
   """ Audio model """
-  title         = models.CharField(max_length=255)
-  slug          = models.SlugField()
   still         = models.FileField(upload_to='audio_stills', blank=True, help_text='An image that will be used as a thumbnail.')
   audio         = models.FilePathField(path=settings.MEDIA_ROOT+'audios/', recursive=True)
-  description   = models.TextField(blank=True)
-  tags          = TagField()
-  uploaded      = models.DateTimeField(auto_now_add=True)
-  modified      = models.DateTimeField(auto_now=True)
 
   class Meta:
     db_table = 'media_audio'
@@ -55,15 +80,10 @@ class Audio(models.Model):
     return ('audio_detail', None, { 'slug': self.slug })
 
 
-class PhotoSet(models.Model):
+class PhotoSet(SetBase):
   """ PhotoSet model """
-  title         = models.CharField(max_length=255)
-  slug          = models.SlugField()
-  description   = models.TextField(blank=True)
   cover_photo   = models.ForeignKey('Photo', blank=True, null=True)
   photos        = models.ManyToManyField('Photo', related_name='photo_sets')
-  created       = models.DateTimeField(auto_now_add=True)
-  modified      = models.DateTimeField(auto_now=True)
   
   class Meta:
     db_table = 'media_photo_sets'
@@ -79,26 +99,10 @@ class PhotoSet(models.Model):
     return ('photo_set_detail', None, { 'slug': self.slug })
   
   
-class Photo(models.Model):
+class Photo(MediaBase):
   """ Photo model """
-  LICENSES = (
-      ('http://creativecommons.org/licenses/by/2.0/',         'CC Attribution'),
-      ('http://creativecommons.org/licenses/by-nd/2.0/',      'CC Attribution-NoDerivs'),
-      ('http://creativecommons.org/licenses/by-nc-nd/2.0/',   'CC Attribution-NonCommercial-NoDerivs'),
-      ('http://creativecommons.org/licenses/by-nc/2.0/',      'CC Attribution-NonCommercial'),
-      ('http://creativecommons.org/licenses/by-nc-sa/2.0/',   'CC Attribution-NonCommercial-ShareAlike'),
-      ('http://creativecommons.org/licenses/by-sa/2.0/',      'CC Attribution-ShareAlike'),
-  )
-  title         = models.CharField(max_length=255)
-  slug          = models.SlugField()
   photo         = models.FileField(upload_to="photos")
-  taken_by      = models.CharField(max_length=100, blank=True)
-  license       = models.URLField(blank=True, choices=LICENSES)
-  description   = models.TextField(blank=True)
-  tags          = TagField()
-  uploaded      = models.DateTimeField(auto_now_add=True)
-  modified      = models.DateTimeField(auto_now=True)
-  _exif         = models.TextField(blank=True) 
+  _exif         = models.TextField(blank=True) # TODO: Replace this with JSONField
   def _set_exif(self, d):
       self._exif = simplejson.dumps(d)
   def _get_exif(self):
@@ -126,14 +130,9 @@ class Photo(models.Model):
     return ('photo_detail', None, { 'slug': self.slug })
 
 
-class VideoSet(models.Model):
+class VideoSet(SetBase):
   """ VideoSet model """
-  title         = models.CharField(max_length=255)
-  slug          = models.SlugField()
-  description   = models.TextField(blank=True)
   videos        = models.ManyToManyField('Video', related_name='video_sets')
-  created       = models.DateTimeField(auto_now_add=True)
-  modified      = models.DateTimeField(auto_now=True)
   
   class Meta:
     db_table = 'media_video_sets'
@@ -149,16 +148,10 @@ class VideoSet(models.Model):
     return ('video_set_detail', None, { 'slug': self.slug })
 
 
-class Video(models.Model):
+class Video(MediaBase):
   """ Video model """
-  title         = models.CharField(max_length=255)
-  slug          = models.SlugField()
   still         = models.FileField(upload_to='video_stills', blank=True, help_text='An image that will be used as a thumbnail.')
   video         = models.FilePathField(path=settings.MEDIA_ROOT+'videos/', recursive=True)
-  description   = models.TextField(blank=True)
-  tags          = TagField()
-  uploaded      = models.DateTimeField(auto_now_add=True)
-  modified      = models.DateTimeField(auto_now=True)
 
   class Meta:
     db_table = 'media_videos'
