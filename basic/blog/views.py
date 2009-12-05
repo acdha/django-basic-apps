@@ -4,7 +4,7 @@ import time
 
 from django.conf import settings
 from django.db.models import Q, F
-from django.http import Http404
+from django.http import Http404, HttpResponsePermanentRedirect
 from django.shortcuts import render_to_response, get_object_or_404
 from django.template import RequestContext
 from django.views.generic import date_based, list_detail
@@ -101,6 +101,13 @@ def post_detail(request, slug, year, month, day, **kwargs):
     )
 post_detail.__doc__ = date_based.object_detail.__doc__
 
+def post_pk_redirect(request, pk):
+    """
+    Utility view for migrating from legacy blog systems. Assuming that your
+    importer keeps the primary keys intact
+    """
+    p = get_object_or_404(Post, pk=pk)
+    return HttpResponsePermanentRedirect(p.get_absolute_url())
 
 def category_list(request, template_name = 'blog/category_list.html', **kwargs):
     """
