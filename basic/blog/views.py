@@ -1,17 +1,17 @@
-from django.shortcuts import render_to_response, get_object_or_404
-from django.template import RequestContext
-from django.http import Http404
-from django.views.generic import date_based, list_detail
-from django.db.models import Q
-from django.conf import settings
-from basic.blog.models import *
-from tagging.models import Tag, TaggedItem
-from django.http import Http404
-from basic.blog.models import Settings
-
 import datetime
 import re
+import time
 
+from django.conf import settings
+from django.db.models import Q, F
+from django.http import Http404
+from django.shortcuts import render_to_response, get_object_or_404
+from django.template import RequestContext
+from django.views.generic import date_based, list_detail
+
+from tagging.models import Tag, TaggedItem
+
+from basic.blog.models import Settings, Post
 
 def post_list(request, page=0, paginate_by=20, **kwargs):
 
@@ -71,11 +71,17 @@ def post_detail(request, slug, year, month, day, **kwargs):
 
     '''
 
+    # This logic completely duplicates date_based.object_detail but allows us
+    # to increment the view count for each post at the cost of a duplicate
+    # query and some extra parsing:
 
-    #grab the post and update view count
-    from django.db.models import F
-    post = get_object_or_404(Post, slug=slug)
+    try:
+        tt = time.strptime('%s-%s-%s' % (year, month, day), '%Y-%b-%d')
+    except ValueError:
+        raise Http404
 
+    # Fixed bug loading multiple slugs differing only in date:
+    post = get_object_or_404(Post, slug=slug, publish__year=tt.tm_year, publish__month=tt.tm_mon, publish__day=tt.tm_mday)
 
     if not request.user.is_superuser and post.status != 2:
         raise Http404
