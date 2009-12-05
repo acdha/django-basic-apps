@@ -11,7 +11,7 @@ from django.views.generic import date_based, list_detail
 
 from tagging.models import Tag, TaggedItem
 
-from basic.blog.models import Settings, Post
+from basic.blog.models import Settings, Post, Category
 
 def post_list(request, page=0, paginate_by=20, **kwargs):
 
