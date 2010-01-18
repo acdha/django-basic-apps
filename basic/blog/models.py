@@ -17,6 +17,10 @@ from django.core.cache import cache
 from django.utils.text import truncate_words
 from sugar.cache.utils import create_cache_key
 
+from django.db.models import signals
+from django.dispatch import dispatcher
+from django_twitter.signals import post_to_twitter
+
 class Category(models.Model):
     """Category model."""
     title       = models.CharField(_('title'), max_length=100)
@@ -87,15 +91,18 @@ class Post(models.Model):
         return u'%s' % self.title
 
     def save(self, *args, **kwargs):
-        body_markup = mark_safe(formatter(self.body, filter_name=self.markup))
-        self.body_markup = body_markup
-        super(Post, self).save(*args, **kwargs)
-
         blog_settings = Settings.get_current()
 
-        if blog_settings is None:
-            return
-        elif blog_settings.ping_google:
+        if blog_settings.active_editor > 1:
+            self.markup = "none"
+            self.body_markup = self.body
+        else:                
+            self.body_markup = mark_safe(formatter(self.body, filter_name=self.markup))
+        super(Post, self).save(*args, **kwargs)
+
+        ping_google = getattr(blog_settings,"ping_google", False)
+        
+        if ping_google:
             try:
                 ping_google()
             except:
@@ -103,9 +110,9 @@ class Post(models.Model):
 
     @permalink
     def get_absolute_url(self):
-        return ('blog_detail', None, {
+        return ('blog_detail_month_numeric', None, {
             'year': self.publish.year,
-            'month': self.publish.strftime('%b').lower(),
+            'month': self.publish.strftime('%m').lower(),
             'day': self.publish.day,
             'slug': self.slug
         })
@@ -130,6 +137,7 @@ class Post(models.Model):
         else:
             return truncate_words(self.tease, 255)
 
+signals.pre_save.connect(post_to_twitter, sender=Post)
 
 class Settings(models.Model):
     '''
@@ -140,6 +148,11 @@ class Settings(models.Model):
     Possible: dynamic settings could be designed at some point to allow the user to add settings as they wish.
     '''
 
+    EDITOR_CHOICES = (
+        (1, _('Text')),
+        (2, _('TinyMCE')),
+        (3, _('Django-WYSIWYG')),
+    )
     site = models.ForeignKey(Site, unique=True)
 
     #denormalized to reduce queries
@@ -161,6 +174,9 @@ class Settings(models.Model):
 
     meta_keywords = models.TextField(_('meta keywords'), blank=True, null=True)
     meta_description = models.TextField(_('meta description'), blank=True, null=True)
+    active_editor = models.IntegerField(_('status'), choices=EDITOR_CHOICES, default=1)
+    excerpt_length = models.IntegerField(_('excerpt length'), default=500, 
+                    help_text=_('The character length of the post body field displayed in RSS templates.'))
 
     class Meta:
         verbose_name = _('settings')
@@ -212,4 +228,3 @@ class BlogRoll(models.Model):
 
     def get_absolute_url(self):
         return self.url
-
