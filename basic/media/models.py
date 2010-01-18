@@ -45,13 +45,13 @@ class MediaBase(BaseMetadata):
 class AudioSet(SetBase):
   """ AudioSet model """
   audios        = models.ManyToManyField('Audio', related_name='audio_sets')
-  
+
   class Meta:
     db_table = 'media_audio_sets'
-  
+
   class Admin:
     pass
-  
+
   def __unicode__(self):
     return '%s' % self.title
 
@@ -84,21 +84,21 @@ class PhotoSet(SetBase):
   """ PhotoSet model """
   cover_photo   = models.ForeignKey('Photo', blank=True, null=True)
   photos        = models.ManyToManyField('Photo', related_name='photo_sets')
-  
+
   class Meta:
     db_table = 'media_photo_sets'
-  
+
   class Admin:
     pass
-  
+
   def __unicode__(self):
     return '%s' % self.title
 
   @permalink
   def get_absolute_url(self):
     return ('photo_set_detail', None, { 'slug': self.slug })
-  
-  
+
+
 class Photo(MediaBase):
   """ Photo model """
   photo         = models.FileField(upload_to="photos")
@@ -111,20 +111,20 @@ class Photo(MediaBase):
       else:
           return {}
   exif = property(_get_exif, _set_exif, "Photo EXIF data, as a dict.")
-  
+
   class Meta:
     db_table = 'media_photos'
-  
+
   class Admin:
     pass
-  
+
   def __unicode__(self):
     return '%s' % self.title
-  
+
   @property
   def url(self):
     return '%s%s' % (settings.MEDIA_URL, self.photo)
-  
+
   @permalink
   def get_absolute_url(self):
     return ('photo_detail', None, { 'slug': self.slug })
@@ -133,13 +133,13 @@ class Photo(MediaBase):
 class VideoSet(SetBase):
   """ VideoSet model """
   videos        = models.ManyToManyField('Video', related_name='video_sets')
-  
+
   class Meta:
     db_table = 'media_video_sets'
-  
+
   class Admin:
     pass
-  
+
   def __unicode__(self):
     return '%s' % self.title
 
