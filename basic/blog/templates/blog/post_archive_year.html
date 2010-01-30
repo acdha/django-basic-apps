@@ -13,7 +13,7 @@
 {% block content %}  
   <ul class="link_list">
     {% for month in date_list %}
-    <li><a href="{% url blog_index %}{{ year }}/{{ month|date:"b" }}/">{{ month|date:"F" }}</a></li>
+    <li><a href="{% url blog_index %}{{ year }}/{{ month|date:"m" }}/">{{ month|date:"F" }}</a></li>
     {% endfor %}
   </ul>
 {% endblock %}
