@@ -10,12 +10,11 @@ from django.template import RequestContext
 from django.views.generic import date_based, list_detail
 
 from tagging.models import Tag, TaggedItem
-from basic.blog.models import Settings
 
+from basic.blog.models import Settings, Category, Post
 
 
 def post_list(request, page=0, paginate_by=20, **kwargs):
-
     page_size = Settings.get_current().page_size
 
     return list_detail.object_list(
@@ -72,31 +71,46 @@ def post_detail(request, slug, year, month, day, **kwargs):
     Displays post detail. If user is superuser, view will display
     unpublished post detail for previewing purposes.
     '''
- 
-    #to handle legacy abbreviate locale month name
+
+    # This logic completely duplicates date_based.object_detail but allows us
+    # to increment the view count for each post at the cost of a duplicate
+    # query and some extra parsing.
+
+    # handle legacy abbreviated locale month name
     month_format = '%b'
     if len(month) < 3:
         month_format = '%m'
- 
-    # This logic completely duplicates date_based.object_detail but allows us
-    # to increment the view count for each post at the cost of a duplicate
-    # query and some extra parsing:
+
+    # Extract the date from the URL:
     try:
-        tt = time.strptime('%s-%s-%s' % (year, month, day), '%%Y-%s-%%d' % month_format)
+        tt = time.strptime(
+            '%s-%s-%s' % (year, month, day),
+            '%%Y-%s-%%d' % month_format
+        )
     except ValueError:
         raise Http404
- 
-    # Fixed bug loading multiple slugs differing only in date:
-    post = get_object_or_404(Post, slug=slug, publish__year=tt.tm_year, publish__month=tt.tm_mon, publish__day=tt.tm_mday)
- 
+
+    # Now we can avoid MultipleObjectsReturned exceptions if the same slug was
+    # used on multiple dates:
+    post = get_object_or_404(Post,
+        slug=slug,
+        publish__year=tt.tm_year,
+        publish__month=tt.tm_mon,
+        publish__day=tt.tm_mday
+    )
+
     #if user is not superuser then don't allow viewing of non-public posts
     if not request.user.is_superuser and post.status != 2:
         raise Http404
 
-    if not request.META.get('REMOTE_ADDR') in settings.INTERNAL_IPS:
+    # Avoid incrementing the view count for our requests:
+    if not (
+        request.user.is_staff
+        or request.META.get('REMOTE_ADDR') in settings.INTERNAL_IPS
+    ):
         post.visits = F('visits') + 1
         post.save()
-        
+
     return date_based.object_detail(
         request,
         year = year,
@@ -119,6 +133,7 @@ def post_pk_redirect(request, pk):
     p = get_object_or_404(Post, pk=pk)
     return HttpResponsePermanentRedirect(p.get_absolute_url())
 
+
 def category_list(request, template_name = 'blog/category_list.html', **kwargs):
     """
     Category list
@@ -134,6 +149,7 @@ def category_list(request, template_name = 'blog/category_list.html', **kwargs):
         template_name = template_name,
         **kwargs
     )
+
 
 def category_detail(request, slug, template_name = 'blog/category_detail.html', **kwargs):
     """
@@ -222,9 +238,13 @@ def search(request, template_name='blog/post_search.html'):
         cleaned_search_term = stop_word_list.sub('', search_term)
         cleaned_search_term = cleaned_search_term.strip()
         if len(cleaned_search_term) != 0:
-            post_list = Post.objects.published().filter(Q(body__icontains=cleaned_search_term) | Q(tags__icontains=cleaned_search_term) | Q(categories__title__icontains=cleaned_search_term))
-            context = {'object_list': post_list, 'search_term':search_term}
+            post_list = Post.objects.published().filter(
+                Q(body__icontains=cleaned_search_term)
+                | Q(tags__icontains=cleaned_search_term)
+                | Q(categories__title__icontains=cleaned_search_term)
+            )
+            context = {'object_list': post_list, 'search_term': search_term}
         else:
             message = 'Search term was too vague. Please try again.'
-            context = {'message':message}
+            context = {'message': message}
     return render_to_response(template_name, context, context_instance=RequestContext(request))
