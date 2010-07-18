@@ -13,7 +13,7 @@ class ElsewhereProfiles(template.Node):
         self.var_name = var_name
 
     def render(self, context):
-        profiles = SocialNetworkProfile.objects.all()
+        profiles = SocialNetworkProfile.objects.all().select_related("category")
         context[self.var_name] = profiles
         return ''
         
