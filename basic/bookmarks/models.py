@@ -5,14 +5,14 @@ from tagging.fields import TagField
 
 class Bookmark(models.Model):
   """ Simple model for storing bookmarks """
-  title = models.CharField(max_length=100, blank=True, null=True)
-  slug = models.SlugField(_('slug'), unique=True)
-  url             = models.URLField(_('url'), unique=True)
-  description     = models.TextField(_('description'), )
-  extended        = models.TextField(_('extended'), blank=True)
-  created         = models.DateTimeField(_('created'), auto_now_add=True)
-  modified        = models.DateTimeField(_('modified'), auto_now=True)
-  tags            = TagField()
+  title       = models.CharField(max_length=250, blank=True, null=True)
+  slug        = models.SlugField(_('slug'), max_length=250, unique=True)
+  url         = models.URLField(_('url'), unique=True, verify_exists=False)
+  description = models.TextField(_('description'), )
+  extended    = models.TextField(_('extended'), blank=True)
+  created     = models.DateTimeField(_('created'), auto_now_add=True)
+  modified    = models.DateTimeField(_('modified'), auto_now=True)
+  tags        = TagField()
   
   class Meta:
     verbose_name = _('bookmark')
